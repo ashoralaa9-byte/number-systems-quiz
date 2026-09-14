@@ -1,0 +1,54 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>مسابقة أنظمة العد</title>
+<style>*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f4f6fb;color:#182033}.wrap{max-width:760px;margin:auto;padding:18px}.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 8px 28px #0001;margin-top:18px}h1{text-align:center}.sub{text-align:center;color:#687086}.hidden{display:none}input{width:100%;font-size:18px;padding:14px;border:1px solid #ccd2df;border-radius:12px;margin:8px 0}button{width:100%;border:0;border-radius:12px;padding:14px;font-size:17px;font-weight:bold;background:#4d63e8;color:white;margin-top:10px}.linkbtn{background:#293044}.progress{height:10px;background:#e8ebf3;border-radius:20px;overflow:hidden;margin:18px 0}.bar{height:100%;background:#4d63e8}.q{font-size:20px;font-weight:bold;line-height:1.7}.score{text-align:center;font-size:48px;font-weight:bold;color:#4d63e8}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#f3f5ff;padding:12px;border-radius:12px;text-align:center}.stat b{display:block;font-size:25px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px 5px;border-bottom:1px solid #eee;text-align:center}.scroll{overflow:auto}.err{color:#a22;background:#fff0f0;padding:9px;border-radius:10px;margin-top:8px}@media(max-width:600px){.stats{grid-template-columns:1fr}table{font-size:13px}}</style></head>
+<body><div class="wrap"><h1>🧮 مسابقة أنظمة العد</h1><div class="sub">٥ أسئلة في التحويل بين أنظمة العد</div>
+<div class="card" id="home"><input id="name" placeholder="اسم الطالب" maxlength="80"><button onclick="begin()">ابدأ المسابقة</button><button class="linkbtn" onclick="openTeacher()">دخول المعلم</button></div>
+<div class="card hidden" id="quiz"><div id="count"></div><div class="progress"><div class="bar" id="bar"></div></div><div class="q" id="question"></div><input id="answer" placeholder="اكتب الإجابة"><button id="next" onclick="nextQ()">التالي</button></div>
+<div class="card hidden" id="result"><div class="score"><span id="score">0</span>/5</div><div id="resultName" style="text-align:center"></div><button onclick="restart()">إعادة الاختبار</button><button class="linkbtn" onclick="goHome()">الرئيسية</button></div>
+<div class="card hidden" id="teacherLogin"><h2>🔒 دخول المعلم</h2><input id="pw" type="password" inputmode="numeric" placeholder="كلمة المرور"><button onclick="teacherLogin()">دخول</button><div id="terr" class="err hidden"></div><button class="linkbtn" onclick="goHome()">رجوع</button></div>
+<div class="hidden" id="teacher"><div class="stats"><div class="stat"><b id="attempts">0</b>المحاولات</div><div class="stat"><b id="students">0</b>الطلاب</div><div class="stat"><b id="avg">0</b>المتوسط</div></div><div class="card"><button onclick="loadResults()">تحديث النتائج</button><div class="scroll"><table><thead><tr><th>الطالب</th><th>الدرجة</th><th>التاريخ</th></tr></thead><tbody id="rows"></tbody></table></div><button class="linkbtn" onclick="goHome()">خروج</button></div></div></div>
+<script>
+const U='https://cbzfdmfdibcabogwtbig.supabase.co',K='sb_publishable_Q_xP9TKt_BSqMluHREKRDQ_grHCWM3s';
+let qs=[],i=0,ans=[],student='',tp='';
+function hide(){['home','quiz','result','teacherLogin','teacher'].forEach(x=>document.getElementById(x).classList.add('hidden'))}
+async function begin(){
+ student=document.getElementById('name').value.trim();
+ if(!student)return alert('اكتب اسم الطالب');
+ const btn=document.querySelector('#home button');btn.disabled=true;btn.textContent='جاري تجهيز الأسئلة...';
+ try{
+  let r=await fetch(U+'/rest/v1/rpc/get_random_number_questions',{method:'POST',headers:{'Content-Type':'application/json','apikey':K},body:'{}'});
+  if(!r.ok)throw 0;
+  qs=await r.json();
+  if(!Array.isArray(qs)||qs.length!==5)throw 0;
+  i=0;ans=[];hide();document.getElementById('quiz').classList.remove('hidden');show();
+ }catch(e){alert('تعذر تحميل الأسئلة، حاول مرة أخرى')}
+ finally{btn.disabled=false;btn.textContent='ابدأ المسابقة'}
+}
+function show(){
+ document.getElementById('count').textContent=`السؤال ${i+1} من 5`;
+ document.getElementById('bar').style.width=((i+1)/5*100)+'%';
+ document.getElementById('question').textContent=qs[i].question;
+ document.getElementById('answer').value='';
+ document.getElementById('next').textContent=i==4?'إرسال النتيجة':'التالي';
+}
+async function nextQ(){
+ let a=document.getElementById('answer').value.trim();
+ if(!a)return alert('اكتب الإجابة');
+ ans.push({id:qs[i].id,answer:a});
+ if(i<4){i++;show();return}
+ document.getElementById('next').disabled=true;
+ try{
+  let r=await fetch(U+'/rest/v1/rpc/submit_random_number_quiz',{method:'POST',headers:{'Content-Type':'application/json','apikey':K},body:JSON.stringify({p_student_name:student,p_answers:ans})});
+  if(!r.ok)throw 0;
+  let d=await r.json(),x=Array.isArray(d)?d[0]:d;
+  hide();document.getElementById('result').classList.remove('hidden');
+  document.getElementById('score').textContent=x.result_score;
+  document.getElementById('resultName').textContent='الطالب: '+student;
+ }catch(e){ans.pop();alert('تعذر حفظ النتيجة، حاول مرة أخرى')}
+ finally{document.getElementById('next').disabled=false}
+}
+function restart(){document.getElementById('name').value=student;begin()}function goHome(){hide();document.getElementById('home').classList.remove('hidden')}function openTeacher(){hide();document.getElementById('teacherLogin').classList.remove('hidden');document.getElementById('pw').value=''}
+async function teacherLogin(){tp=document.getElementById('pw').value;document.getElementById('terr').classList.add('hidden');try{await loadResults();hide();document.getElementById('teacher').classList.remove('hidden')}catch(e){document.getElementById('terr').textContent='كلمة المرور غير صحيحة';document.getElementById('terr').classList.remove('hidden')}}
+async function loadResults(){let r=await fetch(U+'/rest/v1/rpc/get_quiz_results',{method:'POST',headers:{'Content-Type':'application/json','apikey':K},body:JSON.stringify({p_password:tp})});if(!r.ok)throw 0;let d=await r.json();rows.innerHTML='';d.forEach(x=>{let tr=document.createElement('tr');tr.innerHTML='<td>'+esc(x.student_name)+'</td><td><b>'+x.score+'/'+x.total+'</b></td><td>'+new Date(x.created_at).toLocaleString('ar-SA')+'</td>';rows.appendChild(tr)});attempts.textContent=d.length;students.textContent=new Set(d.map(x=>x.student_name)).size;avg.textContent=(d.length?(d.reduce((s,x)=>s+Number(x.score),0)/d.length).toFixed(1):0)+'/5'}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+document.getElementById('answer').addEventListener('keydown',e=>{if(e.key==='Enter')nextQ()});
+</script></body></html>
