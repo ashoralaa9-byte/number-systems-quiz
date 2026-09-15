@@ -33,18 +33,24 @@ function show(){
 async function nextQ(){
  let a=document.getElementById('answer').value.trim();
  if(!a)return alert('اكتب الإجابة');
- ans.push({id:qs[i].id,answer:a});
- if(i<4){i++;show();return}
- document.getElementById('next').disabled=true;
+ const btn=document.getElementById('next');btn.disabled=true;
  try{
+  let c=await fetch(U+'/rest/v1/rpc/check_number_answer',{method:'POST',headers:{'Content-Type':'application/json','apikey':K},body:JSON.stringify({p_question_id:qs[i].id,p_answer:a})});
+  if(!c.ok)throw new Error('check');
+  let check=await c.json();
+  alert(check.correct?'✅ إجابة صحيحة':'❌ إجابة خاطئة\nالإجابة الصحيحة: '+check.correct_answer);
+  ans.push({id:qs[i].id,answer:a});
+  if(i<4){i++;show();return}
   let r=await fetch(U+'/rest/v1/rpc/submit_random_number_quiz',{method:'POST',headers:{'Content-Type':'application/json','apikey':K},body:JSON.stringify({p_student_name:student,p_answers:ans})});
-  if(!r.ok)throw 0;
+  if(!r.ok)throw new Error('save');
   let d=await r.json(),x=Array.isArray(d)?d[0]:d;
   hide();document.getElementById('result').classList.remove('hidden');
   document.getElementById('score').textContent=x.result_score;
   document.getElementById('resultName').textContent='الطالب: '+student;
- }catch(e){ans.pop();alert('تعذر حفظ النتيجة، حاول مرة أخرى')}
- finally{document.getElementById('next').disabled=false}
+ }catch(e){
+  if(e.message==='save')ans.pop();
+  alert(e.message==='save'?'تعذر حفظ النتيجة، حاول مرة أخرى':'تعذر التحقق من الإجابة، حاول مرة أخرى');
+ }finally{btn.disabled=false}
 }
 function restart(){document.getElementById('name').value=student;begin()}function goHome(){hide();document.getElementById('home').classList.remove('hidden')}function openTeacher(){hide();document.getElementById('teacherLogin').classList.remove('hidden');document.getElementById('pw').value=''}
 async function teacherLogin(){tp=document.getElementById('pw').value;document.getElementById('terr').classList.add('hidden');try{await loadResults();hide();document.getElementById('teacher').classList.remove('hidden')}catch(e){document.getElementById('terr').textContent='كلمة المرور غير صحيحة';document.getElementById('terr').classList.remove('hidden')}}
